@@ -8,7 +8,7 @@
 
 x-chattie-base: &chattie-base
   build:
-    context: .
+    context: ./services/llm
     dockerfile: Dockerfile
   env_file: .env
   environment:
@@ -32,7 +32,7 @@ services:
     profiles: [dev]
     command: uvicorn app:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - .:/app
+      - ./services/llm:/app
       - /app/__pycache__
 
   postgres:
