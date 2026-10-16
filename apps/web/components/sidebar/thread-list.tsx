@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useActiveThreadId } from "@/hooks/use-active-thread-id";
+import { useThreads } from "@/hooks/use-threads";
 import { cn } from "@/lib/utils";
-import type { ThreadListProps } from "@/types/thread";
 
-export function ThreadList({ threads }: ThreadListProps) {
+export function ThreadList() {
+  const { data: threads } = useThreads();
   const activeId = useActiveThreadId();
 
   if (threads.length === 0) {

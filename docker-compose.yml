@@ -6,7 +6,8 @@
 # Chat history (LangGraph checkpointer) lives in the Postgres running on the host
 # machine. Credentials come from DB_* in ./.env; inside containers DB_HOST is
 # replaced by DOCKER_DB_HOST (e.g. host.docker.internal). The compose `postgres`
-# service below is Langfuse's only.
+# service below is Langfuse's only. Likewise AUTH_JWKS_URL is replaced by
+# DOCKER_AUTH_JWKS_URL so the API can fetch the web app's (host :3001) signing keys.
 #
 # Compose auto-loads ./.env for ${VAR} interpolation below. Secrets listed here with
 # "dev-only — rotate for anything real" are safe for local but must change in production.
@@ -20,6 +21,7 @@ x-chattie-base: &chattie-base
     LANGFUSE_BASE_URL: http://langfuse-web:3000
     LANGFUSE_HOST: http://langfuse-web:3000
     DB_HOST: ${DOCKER_DB_HOST:?set DOCKER_DB_HOST in .env}
+    AUTH_JWKS_URL: ${DOCKER_AUTH_JWKS_URL:?set DOCKER_AUTH_JWKS_URL in .env}
   extra_hosts:
     - "host.docker.internal:host-gateway"
   depends_on:

@@ -1,10 +1,18 @@
+import {
+  dehydrate,
+  HydrationBoundary,
+  QueryClient,
+} from "@tanstack/react-query";
+import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { ThreadList } from "@/components/sidebar/thread-list";
-import { getThreads } from "@/lib/api";
+import { UserMenu } from "@/components/sidebar/user-menu";
+import { getThreads } from "@/lib/api/server";
+import { threadsKey } from "@/lib/queries/threads";
 import type { SidebarMessageProps } from "@/types/sidebar";
 
-/** Brand, "New chat" and thread history; shared by the desktop sidebar and the mobile drawer. */
+/** Brand, "New chat", thread history and the user menu; shared by the desktop sidebar and the mobile drawer. */
 export function SidebarContent() {
   return (
     <>
@@ -20,14 +28,27 @@ export function SidebarContent() {
           <Threads />
         </Suspense>
       </nav>
+      <div className="border-t p-2">
+        <Suspense fallback={<SidebarMessage text="…" />}>
+          <UserMenu />
+        </Suspense>
+      </div>
     </>
   );
 }
 
+/** Seeds the browser's ["threads"] query with server data; TanStack Query owns it from then on. */
 async function Threads() {
   try {
-    return <ThreadList threads={await getThreads()} />;
-  } catch {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(threadsKey, await getThreads());
+    return (
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <ThreadList />
+      </HydrationBoundary>
+    );
+  } catch (error) {
+    unstable_rethrow(error); // let redirect() (expired session) through
     // The chat itself stays usable even if the history can't be listed.
     return <SidebarMessage text="Couldn't load chats" />;
   }

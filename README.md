@@ -71,7 +71,7 @@ flowchart TB
 |---|---|---|
 | User interface | **Implemented** (Next.js 16 + AI SDK v7 + shadcn/ui, streams from `POST /chat`) | `apps/web/` |
 | Edge layer | Planned (reverse proxy / rate limit / WAF) | — |
-| Authentication | Planned | — |
+| Authentication | **Implemented** — email + password via Better Auth in the web app; its JWT plugin signs short-lived EdDSA tokens that the API verifies against `/api/auth/jwks` | `apps/web/lib/auth.ts`, `services/llm/core_llm/auth.py` |
 | API | **Implemented** | `services/llm/app.py`, FastAPI |
 | Agent orchestrator (Agent01/02/03) | Scaffolded (single LangGraph agent ⇄ tools loop, no multi-agent routing yet) | `services/llm/core_llm/graph.py` |
 | MCP + Tools | Partial — local LangChain tools, no API keys needed: `get_current_datetime`, `get_weather` (Open-Meteo), `web_search` (DuckDuckGo via `ddgs`); MCP planned | `services/llm/core_llm/tools/` |
@@ -81,7 +81,7 @@ flowchart TB
 | Cost Tracker | Partial — Langfuse captures token/cost, no dedicated tracker | via Langfuse |
 | Evaluation | Planned (Langfuse Datasets/Scores or local harness) | — |
 | PII redaction | Planned | — |
-| Authorization | Planned (per-agent / per-tool policy) | — |
+| Authorization | Partial — every API route except `/health` requires a valid token; threads are owned by their user (others get 404). Per-agent / per-tool policy planned | `services/llm/core_llm/threads.py` |
 
 ## Layout
 
@@ -149,6 +149,9 @@ package.json                  npm workspaces root (apps/*, packages/*)
 | `DB_USER` / `DB_PASSWORD` | Credentials for that Postgres |
 | `DB_NAME` | Database for the LangGraph checkpointer (default `chattie`; must already exist) |
 | `CORS_ORIGINS` | JSON list of browser origins allowed to call the API, e.g. `["http://localhost:3001"]` |
+| `AUTH_JWKS_URL` | Web app's public signing keys, `http://localhost:3001/api/auth/jwks` |
+| `DOCKER_AUTH_JWKS_URL` | `AUTH_JWKS_URL` to use inside Docker (normally `http://host.docker.internal:3001/api/auth/jwks`) |
+| `AUTH_ISSUER` / `AUTH_AUDIENCE` | Expected JWT `iss` / `aud`: the web app's `BETTER_AUTH_URL` (`http://localhost:3001`) |
 
 The web UI reads `NEXT_PUBLIC_API_URL` (the API base URL, default `http://localhost:8000`) from `apps/web/.env.local`; see `apps/web/.env.example`.
 
@@ -203,10 +206,14 @@ Ports on this machine: **3000** Langfuse · **3001** web UI · **8000** API · *
 
 ```bash
 make web-install   # once: npm install at the repo root (workspaces)
+psql -d chattie -c 'CREATE SCHEMA IF NOT EXISTS auth'   # once
+make web-migrate   # once (and after auth upgrades): Better Auth tables
 make dev-stack     # terminal 1: API on :8000 + Langfuse on :3000
 make web           # terminal 2: UI on http://localhost:3001
 make web-lint      # type-check + Biome
 ```
+
+Sign up at `/sign-up` (email + password). The **first** account also takes ownership of chats created before sign-in existed. The API trusts only tokens signed by the web app, so the web app must be running for the API to accept requests.
 
 Opening `/` starts a new thread at `/chat/<uuid>`; that id is the LangGraph `thread_id` and the Langfuse session, so reloading the page restores the conversation. The browser sends only the newest message to `POST /chat`, which streams back the [AI SDK UI message stream protocol](https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol) — text deltas plus tool calls/results, rendered as tool cards.
 

@@ -5,6 +5,7 @@ from langfuse import Langfuse
 
 from config import Settings
 from core_llm import threads
+from core_llm.auth import build_jwks_client
 from core_llm.builder import build_db_pool, build_llm, build_memory
 from core_llm.graph import build_graph
 
@@ -34,11 +35,12 @@ def create_app() -> FastAPI:
     settings = Settings()
     app = FastAPI(title="Chattie API", lifespan=lifespan)
     app.state.settings = settings
+    app.state.jwks = build_jwks_client(settings)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Authorization", "Content-Type"],
     )
     app.include_router(health_router)
     app.include_router(llm_router)

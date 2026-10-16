@@ -1,7 +1,7 @@
 COMPOSE  := docker-compose
 PROFILES := --profile prod --profile dev --profile langfuse
 
-.PHONY: help build prod dev stack dev-stack down clean logs ps shell health web-install web web-lint
+.PHONY: help build prod dev stack dev-stack down clean logs ps shell health web-install web web-lint web-migrate
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -47,3 +47,6 @@ web: ## Start the web UI dev server on :3001 (Langfuse owns :3000)
 
 web-lint: ## Type-check and lint the web UI
 	cd apps/web && npx tsc --noEmit && npm run lint
+
+web-migrate: ## Create/upgrade Better Auth tables (auth schema of the chattie DB)
+	cd apps/web && set -a && . ./.env.local && set +a && npx auth@latest migrate --config lib/auth.ts -y

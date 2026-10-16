@@ -1,19 +1,20 @@
 import { useChat } from "@ai-sdk/react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { createChatTransport } from "@/lib/api";
+import { createChatTransport } from "@/lib/api/client";
+import { threadsKey } from "@/lib/queries/threads";
 import type { ChatProps } from "@/types/chat";
 
 /** One chat thread: streamed messages from the API plus send/stop actions. */
 export function useChatSession({ id, initialMessages }: ChatProps) {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const [transport] = useState(createChatTransport);
   const { messages, sendMessage, status, stop, error } = useChat({
     id,
     messages: initialMessages,
     transport,
-    // Re-render server components so the sidebar shows this thread at the top.
-    onFinish: () => router.refresh(),
+    // A reply creates the thread or bumps it to the top: refetch the sidebar list.
+    onFinish: () => queryClient.invalidateQueries({ queryKey: threadsKey }),
   });
 
   const isBusy = status === "submitted" || status === "streaming";

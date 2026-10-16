@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Chat } from "@/components/chat/chat";
-import { getThreadMessages, THREAD_ID_PATTERN } from "@/lib/api";
+import { getThreadMessages } from "@/lib/api/server";
+import { THREAD_ID_PATTERN } from "@/lib/api/shared";
 import type { ChatThreadProps } from "@/types/chat";
 
 export default function ChatPage({ params }: PageProps<"/chat/[id]">) {

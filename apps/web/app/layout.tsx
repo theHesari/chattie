@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { MobileNav } from "@/components/sidebar/mobile-nav";
-import { SidebarContent } from "@/components/sidebar/sidebar-content";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
@@ -16,14 +14,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
-      <body className="flex h-dvh bg-background text-foreground antialiased">
-        <AppSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <MobileNav>
-            <SidebarContent />
-          </MobileNav>
-          <main className="min-h-0 flex-1">{children}</main>
-        </div>
+      <body className="bg-background text-foreground antialiased">
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );

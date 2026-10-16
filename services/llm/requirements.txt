@@ -10,3 +10,4 @@ langfuse
 langgraph-checkpoint-postgres
 psycopg[binary,pool]
 ddgs
+pyjwt[crypto]

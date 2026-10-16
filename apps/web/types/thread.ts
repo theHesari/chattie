@@ -4,7 +4,3 @@ export type ThreadSummary = {
   title: string;
   updatedAt: string;
 };
-
-export type ThreadListProps = {
-  threads: ThreadSummary[];
-};

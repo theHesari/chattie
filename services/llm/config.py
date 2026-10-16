@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     # Browser origins allowed to call the API, as a JSON list, e.g. ["http://localhost:3001"].
     CORS_ORIGINS: list[str] = []
 
+    # Bearer tokens are signed by the web app (Better Auth JWT plugin) and verified with its public keys.
+    AUTH_JWKS_URL: str
+    AUTH_ISSUER: str
+    AUTH_AUDIENCE: str
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
