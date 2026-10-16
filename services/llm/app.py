@@ -15,14 +15,15 @@ async def lifespan(app: FastAPI):
     settings = Settings()
     app.state.settings = settings
     app.state.llm = build_llm(settings)
-    app.state.memory = build_memory(settings)
-    app.state.graph = build_graph(settings, app.state.memory)
     app.state.langfuse = Langfuse(
         public_key=settings.LANGFUSE_PUBLIC_KEY,
         secret_key=settings.LANGFUSE_SECRET_KEY,
         host=settings.LANGFUSE_BASE_URL,
     )
-    yield
+    async with build_memory(settings) as memory:
+        app.state.memory = memory
+        app.state.graph = build_graph(settings, memory)
+        yield
 
 
 def create_app() -> FastAPI:

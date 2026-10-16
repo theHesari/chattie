@@ -6,8 +6,8 @@ PROFILES := --profile prod --profile dev --profile langfuse
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-build: ## Build the chattie image
-	$(COMPOSE) build
+build: ## Build the chattie images (prod + dev)
+	$(COMPOSE) $(PROFILES) build
 
 prod: ## Start chattie only (production mode on :8000)
 	$(COMPOSE) --profile prod up -d

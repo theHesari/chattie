@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     LANGFUSE_SECRET_KEY: str
     LANGFUSE_BASE_URL: str
 
+    DATABASE_URL: str
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
