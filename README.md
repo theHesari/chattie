@@ -76,7 +76,7 @@ flowchart TB
 | Agent orchestrator (Agent01/02/03) | Scaffolded (single LangGraph agent ⇄ tools loop, no multi-agent routing yet) | `services/llm/core_llm/graph.py` |
 | MCP + Tools | Partial — local LangChain tools (`get_current_datetime`, `get_weather` via Open-Meteo); MCP planned | `services/llm/core_llm/tools.py` |
 | LLM | **Implemented** (OpenRouter via `langchain-openai`) | `services/llm/core_llm/builder.py` |
-| Session db | **Implemented** — the graph is compiled with LangGraph's `AsyncPostgresSaver` (database `chattie` on the compose Postgres); `session_id` is the `thread_id`, so `/query` is multi-turn per session and history survives restarts. | `services/llm/core_llm/builder.py` |
+| Session db | **Implemented** — the graph is compiled with LangGraph's `AsyncPostgresSaver` (database `chattie` on a Postgres running on the host machine); `session_id` is the `thread_id`, so `/query` is multi-turn per session and history survives restarts. | `services/llm/core_llm/builder.py` |
 | Observability | **Implemented** (Langfuse client wired in `lifespan`) | `services/llm/app.py`, `services/llm/ops/health.py` |
 | Cost Tracker | Partial — Langfuse captures token/cost, no dedicated tracker | via Langfuse |
 | Evaluation | Planned (Langfuse Datasets/Scores or local harness) | — |
@@ -126,9 +126,12 @@ Makefile                      convenience targets
 | `LANGFUSE_PUBLIC_KEY` | Langfuse project public key (`pk-lf-…`) |
 | `LANGFUSE_SECRET_KEY` | Langfuse project secret key (`sk-lf-…`) |
 | `LANGFUSE_BASE_URL` | Langfuse host URL |
-| `DATABASE_URL` | Postgres connection string for chat history (LangGraph checkpointer) |
+| `DB_HOST` / `DB_PORT` | Host Postgres for chat history (default `localhost` / `5432`) |
+| `DOCKER_DB_HOST` | `DB_HOST` to use inside Docker containers (required by Compose; normally `host.docker.internal`) |
+| `DB_USER` / `DB_PASSWORD` | Credentials for that Postgres |
+| `DB_NAME` | Database for the LangGraph checkpointer (default `chattie`; must already exist) |
 
-When you run through Compose, `LANGFUSE_BASE_URL` is **overridden to `http://langfuse-web:3000`** so the chattie container can reach the in-network Langfuse service. The value in `.env` only matters when running outside Docker. `DATABASE_URL` is likewise **set by Compose** to `postgresql://postgres:postgres@postgres:5432/chattie`; you only need it in `.env` for local Python runs.
+When you run through Compose, `LANGFUSE_BASE_URL` is **overridden to `http://langfuse-web:3000`** so the chattie container can reach the in-network Langfuse service. The value in `.env` only matters when running outside Docker. Likewise, inside containers `DB_HOST` is **replaced by `DOCKER_DB_HOST`** from `.env` (normally `host.docker.internal`) so the container reaches the Postgres on your machine; the other `DB_*` values are used as-is in both modes.
 
 ## Running
 
@@ -151,8 +154,8 @@ make shell       # bash into the running chattie container
 
 Under the hood these are just `docker compose --profile <...> up` commands. Three profiles are defined:
 
-- `prod` — `chattie` service, no reload, plus `postgres` for chat history
-- `dev`  — `chattie-dev` service, `--reload`, source mounted at `/app`, plus `postgres` for chat history
+- `prod` — `chattie` service, no reload
+- `dev`  — `chattie-dev` service, `--reload`, source mounted at `/app`
 - `langfuse` — the self-hosted Langfuse v3 stack: `langfuse-web`, `langfuse-worker`, `postgres`, `clickhouse`, `redis`, `minio`
 
 Mix profiles freely:
@@ -171,7 +174,7 @@ pip install -r requirements.txt
 uvicorn app:app --reload
 ```
 
-This needs a reachable Postgres in `DATABASE_URL`. The compose Postgres is not published to the host, so either run your own or temporarily add a `ports` entry to the `postgres` service.
+Both Docker and local runs need the host Postgres from `DB_*` to be running, with the `DB_NAME` database created. The checkpointer creates its own tables on startup. With Homebrew: `brew services start postgresql@15`, then `createdb chattie`.
 
 ## First boot with Langfuse
 

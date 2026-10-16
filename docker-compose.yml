@@ -1,10 +1,12 @@
 # Profiles:
-#   prod       — chattie app, uvicorn, no reload (+ postgres for chat history)
-#   dev        — chattie app, uvicorn --reload, source bind-mounted (+ postgres for chat history)
+#   prod       — chattie app, uvicorn, no reload
+#   dev        — chattie app, uvicorn --reload, source bind-mounted
 #   langfuse   — full self-hosted Langfuse v3 stack (web, worker, postgres, clickhouse, redis, minio)
 #
-# Postgres is shared: Langfuse uses the `langfuse` database, chattie's LangGraph
-# checkpointer uses the `chattie` database (created by `postgres-init`).
+# Chat history (LangGraph checkpointer) lives in the Postgres running on the host
+# machine. Credentials come from DB_* in ./.env; inside containers DB_HOST is
+# replaced by DOCKER_DB_HOST (e.g. host.docker.internal). The compose `postgres`
+# service below is Langfuse's only.
 #
 # Compose auto-loads ./.env for ${VAR} interpolation below. Secrets listed here with
 # "dev-only — rotate for anything real" are safe for local but must change in production.
@@ -17,10 +19,10 @@ x-chattie-base: &chattie-base
   environment:
     LANGFUSE_BASE_URL: http://langfuse-web:3000
     LANGFUSE_HOST: http://langfuse-web:3000
-    DATABASE_URL: postgresql://postgres:postgres@postgres:5432/chattie
+    DB_HOST: ${DOCKER_DB_HOST:?set DOCKER_DB_HOST in .env}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   depends_on:
-    postgres-init:
-      condition: service_completed_successfully
     langfuse-web:
       condition: service_healthy
       required: false
@@ -43,7 +45,7 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    profiles: [prod, dev, langfuse]
+    profiles: [langfuse]
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -56,19 +58,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-
-  postgres-init:
-    image: postgres:16-alpine
-    profiles: [prod, dev, langfuse]
-    depends_on:
-      postgres: { condition: service_healthy }
-    environment:
-      PGPASSWORD: postgres
-    entrypoint: >
-      /bin/sh -c "
-      psql -h postgres -U postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = 'chattie'\" | grep -q 1 ||
-      psql -h postgres -U postgres -c 'CREATE DATABASE chattie'
-      "
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.8-alpine

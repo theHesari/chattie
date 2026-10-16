@@ -20,7 +20,7 @@ def build_llm(settings: Settings) -> ChatOpenAI:
 @asynccontextmanager
 async def build_memory(settings: Settings) -> AsyncIterator[AsyncPostgresSaver]:
     pool = AsyncConnectionPool(
-        settings.DATABASE_URL,
+        settings.DATABASE_CONNINFO,
         kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
         open=False,
     )
