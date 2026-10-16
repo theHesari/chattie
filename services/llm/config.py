@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     DB_PASSWORD: str
     DB_NAME: str = "chattie"
 
+    # Browser origins allowed to call the API, as a JSON list, e.g. ["http://localhost:3001"].
+    CORS_ORIGINS: list[str] = []
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property

@@ -18,13 +18,18 @@ def build_llm(settings: Settings) -> ChatOpenAI:
 
 
 @asynccontextmanager
-async def build_memory(settings: Settings) -> AsyncIterator[AsyncPostgresSaver]:
+async def build_db_pool(settings: Settings) -> AsyncIterator[AsyncConnectionPool]:
+    """Postgres pool shared by the LangGraph checkpointer and the thread index."""
     pool = AsyncConnectionPool(
         settings.DATABASE_CONNINFO,
         kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
         open=False,
     )
     async with pool:
-        checkpointer = AsyncPostgresSaver(pool)
-        await checkpointer.setup()
-        yield checkpointer
+        yield pool
+
+
+async def build_memory(pool: AsyncConnectionPool) -> AsyncPostgresSaver:
+    checkpointer = AsyncPostgresSaver(pool)
+    await checkpointer.setup()
+    return checkpointer

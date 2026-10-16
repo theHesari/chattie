@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import httpx
 from langchain_core.tools import tool
 
@@ -20,16 +18,6 @@ WEATHER_CODES = {
     85: "slight snow showers", 86: "heavy snow showers",
     95: "thunderstorm", 96: "thunderstorm with slight hail", 99: "thunderstorm with heavy hail",
 }
-
-
-def format_now() -> str:
-    return datetime.now().astimezone().strftime("%A, %d %B %Y, %H:%M %Z")
-
-
-@tool
-def get_current_datetime() -> str:
-    """Return the current local date, day of the week, and time."""
-    return format_now()
 
 
 @tool
@@ -71,6 +59,3 @@ async def get_weather(city: str) -> str:
             f"{daily['precipitation_probability_max'][i]}% chance of precipitation."
         )
     return "\n".join(lines)
-
-
-TOOLS = [get_current_datetime, get_weather]

@@ -1,0 +1,8 @@
+{
+  "name": "chattie",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

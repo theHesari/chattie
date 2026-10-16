@@ -221,3 +221,6 @@ __marimo__/
 
 # Docx
 *.docx
+# Node / Next.js (web UI, npm workspaces)
+node_modules/
+.next/

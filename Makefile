@@ -1,7 +1,7 @@
 COMPOSE  := docker-compose
 PROFILES := --profile prod --profile dev --profile langfuse
 
-.PHONY: help build prod dev stack dev-stack down clean logs ps shell health
+.PHONY: help build prod dev stack dev-stack down clean logs ps shell health web-install web web-lint
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -38,3 +38,12 @@ shell: ## Open a shell inside the running chattie container
 
 health: ## Hit chattie's /health endpoint
 	@curl -s http://localhost:8000/health | python3 -m json.tool
+
+web-install: ## Install web UI dependencies (npm workspaces)
+	npm install
+
+web: ## Start the web UI dev server on :3001 (Langfuse owns :3000)
+	npm run dev -w @chattie/web
+
+web-lint: ## Type-check and lint the web UI
+	cd apps/web && npx tsc --noEmit && npm run lint
