@@ -4,9 +4,11 @@ from langfuse import Langfuse
 
 from config import Settings
 from core_llm.builder import build_llm, build_memory
+from core_llm.graph import build_graph
 
 from ops.health import router as health_router
-from core_llm.chain import router as llm_router
+from core_llm.routes import router as llm_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -14,6 +16,7 @@ async def lifespan(app: FastAPI):
     app.state.settings = settings
     app.state.llm = build_llm(settings)
     app.state.memory = build_memory(settings)
+    app.state.graph = build_graph(settings, app.state.memory)
     app.state.langfuse = Langfuse(
         public_key=settings.LANGFUSE_PUBLIC_KEY,
         secret_key=settings.LANGFUSE_SECRET_KEY,

@@ -2,22 +2,14 @@ import logging
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request
+from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["llm"])
 
-_chain = None
 _handler = None
-
-
-def _get_chain(settings):
-    global _chain
-    if _chain is None:
-        from core_llm.chain import build_chain
-        _chain = build_chain(settings)
-    return _chain
 
 
 def _get_handler():
@@ -43,14 +35,14 @@ class QueryResponse(BaseModel):
 @router.post("/query", summary="Query the LLM", response_model=QueryResponse)
 async def query(request: Request, query_request: QueryRequest) -> QueryResponse:
     session_id = query_request.session_id or f"session-{uuid.uuid4()}"
-    state = request.app.state
-    chain = _get_chain(state.settings)
+    graph = request.app.state.graph
     handler = _get_handler()
 
     try:
-        result = await chain.ainvoke(
-            {"user_input": query_request.query},
+        result = await graph.ainvoke(
+            {"messages": [HumanMessage(query_request.query)]},
             config={
+                "configurable": {"thread_id": session_id},
                 "callbacks": [handler],
                 "run_name": "answer-question-base",
                 "metadata": {
@@ -61,8 +53,8 @@ async def query(request: Request, query_request: QueryRequest) -> QueryResponse:
             },
         )
     except Exception as exc:
-        logger.exception("base chain invocation failed")
+        logger.exception("graph invocation failed")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    answer = result.content if hasattr(result, "content") else str(result)
+    answer = result["messages"][-1].content
     return QueryResponse(response=answer, session_id=session_id)
