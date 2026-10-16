@@ -21,7 +21,7 @@ def _get_handler():
 
 
 class QueryRequest(BaseModel):
-    query: str = Field(..., min_length=10)
+    query: str
     session_id: str | None = None
     user_id: str | None = None
     tags: list[str] = Field(default_factory=list)

@@ -74,7 +74,7 @@ flowchart TB
 | Authentication | Planned | — |
 | API | **Implemented** | `services/llm/app.py`, FastAPI |
 | Agent orchestrator (Agent01/02/03) | Scaffolded (single LangGraph agent ⇄ tools loop, no multi-agent routing yet) | `services/llm/core_llm/graph.py` |
-| MCP + Tools | Partial — local LangChain tools (`get_current_datetime`); MCP planned | `services/llm/core_llm/tools.py` |
+| MCP + Tools | Partial — local LangChain tools (`get_current_datetime`, `get_weather` via Open-Meteo); MCP planned | `services/llm/core_llm/tools.py` |
 | LLM | **Implemented** (OpenRouter via `langchain-openai`) | `services/llm/core_llm/builder.py` |
 | Session db | **Implemented** — the graph is compiled with LangGraph's `AsyncPostgresSaver` (database `chattie` on the compose Postgres); `session_id` is the `thread_id`, so `/query` is multi-turn per session and history survives restarts. | `services/llm/core_llm/builder.py` |
 | Observability | **Implemented** (Langfuse client wired in `lifespan`) | `services/llm/app.py`, `services/llm/ops/health.py` |
