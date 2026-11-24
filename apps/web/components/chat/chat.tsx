@@ -4,6 +4,7 @@ import { MessageSquareIcon } from "lucide-react";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { Conversation } from "@/components/chat/conversation";
 import { PromptForm } from "@/components/chat/prompt-form";
+import { SendFailed } from "@/components/chat/send-failed";
 import { Suggestions } from "@/components/chat/suggestions";
 import { useChatSession } from "@/hooks/use-chat-session";
 import type { ChatProps } from "@/types/chat";
@@ -15,7 +16,8 @@ const SUGGESTIONS = [
 ] as const;
 
 export function Chat(props: ChatProps) {
-  const { messages, status, error, isBusy, send, stop } = useChatSession(props);
+  const { messages, status, error, isBusy, send, stop, retry } =
+    useChatSession(props);
   const isEmpty = messages.length === 0;
 
   return (
@@ -36,11 +38,7 @@ export function Chat(props: ChatProps) {
             Thinking…
           </p>
         )}
-        {error && (
-          <p role="alert" className="text-destructive text-sm">
-            Something went wrong. Please try again.
-          </p>
-        )}
+        {error && <SendFailed onRetry={retry} />}
       </Conversation>
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 p-4">

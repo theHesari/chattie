@@ -9,7 +9,7 @@ import type { ChatProps } from "@/types/chat";
 export function useChatSession({ id, initialMessages }: ChatProps) {
   const queryClient = useQueryClient();
   const [transport] = useState(createChatTransport);
-  const { messages, sendMessage, status, stop, error } = useChat({
+  const { messages, sendMessage, regenerate, status, stop, error } = useChat({
     id,
     messages: initialMessages,
     transport,
@@ -25,5 +25,9 @@ export function useChatSession({ id, initialMessages }: ChatProps) {
     sendMessage({ text: trimmed });
   };
 
-  return { messages, status, error, isBusy, send, stop };
+  // After a failed send the last message is the unanswered user message; regenerate()
+  // sends it again (same id, so the server never stores it twice).
+  const retry = () => regenerate();
+
+  return { messages, status, error, isBusy, send, stop, retry };
 }

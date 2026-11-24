@@ -3,12 +3,12 @@ import {
   HydrationBoundary,
   QueryClient,
 } from "@tanstack/react-query";
-import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { ThreadList } from "@/components/sidebar/thread-list";
 import { UserMenu } from "@/components/sidebar/user-menu";
 import { getThreads } from "@/lib/api/server";
+import { ApiUnavailableError } from "@/lib/api/shared";
 import { threadsKey } from "@/lib/queries/threads";
 import type { SidebarMessageProps } from "@/types/sidebar";
 
@@ -48,9 +48,11 @@ async function Threads() {
       </HydrationBoundary>
     );
   } catch (error) {
-    unstable_rethrow(error); // let redirect() (expired session) through
-    // The chat itself stays usable even if the history can't be listed.
-    return <SidebarMessage text="Couldn't load chats" />;
+    // API down is expected; anything else (and redirect()) propagates.
+    if (error instanceof ApiUnavailableError) {
+      return <SidebarMessage text="Chats are unavailable right now" />;
+    }
+    throw error;
   }
 }
 

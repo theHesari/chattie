@@ -46,6 +46,10 @@ export type PromptFormProps = {
   onStop: () => void;
 };
 
+export type SendFailedProps = {
+  onRetry: () => void;
+};
+
 export type SuggestionsProps = {
   suggestions: readonly string[];
   onSelect: (suggestion: string) => void;

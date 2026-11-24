@@ -1,8 +1,10 @@
+import type { UIMessage } from "ai";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { ApiUnavailable } from "@/components/chat/api-unavailable";
 import { Chat } from "@/components/chat/chat";
 import { getThreadMessages } from "@/lib/api/server";
-import { THREAD_ID_PATTERN } from "@/lib/api/shared";
+import { ApiUnavailableError, THREAD_ID_PATTERN } from "@/lib/api/shared";
 import type { ChatThreadProps } from "@/types/chat";
 
 export default function ChatPage({ params }: PageProps<"/chat/[id]">) {
@@ -17,7 +19,14 @@ async function ChatThread({ params }: ChatThreadProps) {
   const { id } = await params;
   if (!THREAD_ID_PATTERN.test(id)) notFound();
 
-  const messages = await getThreadMessages(id);
+  let messages: UIMessage[];
+  try {
+    messages = await getThreadMessages(id);
+  } catch (error) {
+    // API down is expected and handled here; anything else (and redirect/notFound) propagates.
+    if (error instanceof ApiUnavailableError) return <ApiUnavailable />;
+    throw error;
+  }
   // `key` resets the chat state when navigating from one thread to another.
   return <Chat key={id} id={id} initialMessages={messages} />;
 }
