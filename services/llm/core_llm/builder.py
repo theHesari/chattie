@@ -29,6 +29,18 @@ async def build_db_pool(settings: Settings) -> AsyncIterator[AsyncConnectionPool
         yield pool
 
 
+@asynccontextmanager
+async def build_query_pool(settings: Settings) -> AsyncIterator[AsyncConnectionPool]:
+    """Pool of the read-only `chattie_query` role, used only by the company SQL tool.
+
+    Kept separate from the owner pool so model-written SQL never runs with owner rights.
+    Not autocommit: every tool query runs in its own read-only transaction.
+    """
+    pool = AsyncConnectionPool(settings.QUERY_DATABASE_CONNINFO, kwargs={"prepare_threshold": 0}, open=False)
+    async with pool:
+        yield pool
+
+
 async def build_memory(pool: AsyncConnectionPool) -> AsyncPostgresSaver:
     checkpointer = AsyncPostgresSaver(pool)
     await checkpointer.setup()

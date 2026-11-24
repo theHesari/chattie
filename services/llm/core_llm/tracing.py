@@ -17,9 +17,13 @@ def run_config(
     user_id: str | None = None,
     tags: list[str] | None = None,
 ) -> RunnableConfig:
-    """Graph config shared by every endpoint: thread memory + Langfuse tracing."""
+    """Graph config shared by every endpoint: thread memory, caller identity, Langfuse tracing.
+
+    `user_id` (the verified JWT subject) is what tools use for authorization, e.g. the
+    company SQL tool's row-level security. It never comes from the model.
+    """
     return {
-        "configurable": {"thread_id": session_id},
+        "configurable": {"thread_id": session_id, "user_id": user_id},
         "callbacks": [_get_handler()],
         "run_name": run_name,
         "metadata": {

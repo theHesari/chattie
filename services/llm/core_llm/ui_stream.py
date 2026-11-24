@@ -23,8 +23,9 @@ UI_MESSAGE_STREAM_HEADERS = {
     "x-accel-buffering": "no",
 }
 
-AGENT_NODE = "agent"
-TOOLS_NODE = "tools"
+# Tag a runnable with this to keep its LLM output out of the chat (e.g. the router's
+# classification). Everything else is streamed by message type, whatever node made it.
+HIDDEN_FROM_CHAT = "hidden-from-chat"
 
 
 def _sse(chunk: dict[str, Any]) -> str:
@@ -45,7 +46,8 @@ async def stream_ui_messages(
     """Run the graph and yield its output as UI message stream SSE events.
 
     Text comes token by token from `messages` mode; tool calls and results come
-    from `updates` mode, once each agent / tools node has finished.
+    from `updates` mode, once a node has finished. Nodes are told apart by what they
+    produce (assistant messages vs tool results), not by name, so any agent works.
     """
     text_id: str | None = None
 
@@ -62,7 +64,7 @@ async def stream_ui_messages(
         async for mode, payload in graph.astream(inputs, config, stream_mode=["messages", "updates"]):
             if mode == "messages":
                 chunk, metadata = payload
-                if metadata.get("langgraph_node") != AGENT_NODE or not isinstance(chunk, AIMessageChunk):
+                if not isinstance(chunk, AIMessageChunk) or HIDDEN_FROM_CHAT in metadata.get("tags", []):
                     continue
                 if delta := _text(chunk.content):
                     if text_id is None:
@@ -71,13 +73,16 @@ async def stream_ui_messages(
                     yield _sse({"type": "text-delta", "id": text_id, "delta": delta})
                 continue
 
-            for node, update in payload.items():
-                messages = (update or {}).get("messages", [])
-                if node == AGENT_NODE:
+            for update in payload.values():
+                # Nodes that write no messages (the router) produce nothing for the chat.
+                messages = (update or {}).get("messages", []) if isinstance(update, dict) else []
+                replies = [m for m in messages if isinstance(m, AIMessage)]
+                results = [m for m in messages if isinstance(m, ToolMessage)]
+                if replies:  # an agent step finished
                     if event := close_text():
                         yield event
-                    for message in messages:
-                        for call in getattr(message, "tool_calls", []):
+                    for message in replies:
+                        for call in message.tool_calls:
                             yield _sse({
                                 "type": "tool-input-available",
                                 "toolCallId": call["id"],
@@ -86,8 +91,8 @@ async def stream_ui_messages(
                                 "dynamic": True,
                             })
                     yield _sse({"type": "finish-step"})
-                elif node == TOOLS_NODE:
-                    for message in messages:
+                if results:  # tools ran; the agent continues in a new step
+                    for message in results:
                         if message.status == "error":
                             yield _sse({"type": "tool-output-error", "toolCallId": message.tool_call_id,
                                         "errorText": _text(message.content), "dynamic": True})

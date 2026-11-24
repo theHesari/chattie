@@ -6,8 +6,9 @@ from langfuse import Langfuse
 from config import Settings
 from core_llm import threads
 from core_llm.auth import build_jwks_client
-from core_llm.builder import build_db_pool, build_llm, build_memory
+from core_llm.builder import build_db_pool, build_llm, build_memory, build_query_pool
 from core_llm.graph import build_graph
+from core_llm.tools.company_sql import build_company_sql_tool
 
 from ops.health import router as health_router
 from core_llm.routes import router as llm_router
@@ -23,11 +24,12 @@ async def lifespan(app: FastAPI):
         secret_key=settings.LANGFUSE_SECRET_KEY,
         host=settings.LANGFUSE_BASE_URL,
     )
-    async with build_db_pool(settings) as pool:
+    async with build_db_pool(settings) as pool, build_query_pool(settings) as query_pool:
         app.state.db_pool = pool
         app.state.memory = await build_memory(pool)
         await threads.setup(pool)
-        app.state.graph = build_graph(settings, app.state.memory)
+        company_sql = await build_company_sql_tool(query_pool)
+        app.state.graph = build_graph(settings, app.state.memory, [company_sql])
         yield
 
 

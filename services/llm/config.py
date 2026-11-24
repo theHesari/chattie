@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     DB_PASSWORD: str
     DB_NAME: str = "chattie"
 
+    # Read-only role for the company SQL tool (created by `make company-db`); same host/port/database.
+    QUERY_DB_USER: str = "chattie_query"
+    QUERY_DB_PASSWORD: str
+
     # Browser origins allowed to call the API, as a JSON list, e.g. ["http://localhost:3001"].
     CORS_ORIGINS: list[str] = []
 
@@ -35,6 +39,16 @@ class Settings(BaseSettings):
             port=self.DB_PORT,
             user=self.DB_USER,
             password=self.DB_PASSWORD,
+            dbname=self.DB_NAME,
+        )
+
+    @property
+    def QUERY_DATABASE_CONNINFO(self) -> str:
+        return make_conninfo(
+            host=self.DB_HOST,
+            port=self.DB_PORT,
+            user=self.QUERY_DB_USER,
+            password=self.QUERY_DB_PASSWORD,
             dbname=self.DB_NAME,
         )
 
