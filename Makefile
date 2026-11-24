@@ -1,7 +1,7 @@
 COMPOSE  := docker-compose
 PROFILES := --profile prod --profile dev --profile langfuse
 
-.PHONY: help build prod dev stack dev-stack down clean logs ps shell health web-install web web-lint web-migrate
+.PHONY: help build prod dev stack dev-stack down clean logs ps shell health web-install web web-lint web-migrate company-db company-link
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -50,3 +50,9 @@ web-lint: ## Type-check and lint the web UI
 
 web-migrate: ## Create/upgrade Better Auth tables (auth schema of the chattie DB)
 	cd apps/web && set -a && . ./.env.local && set +a && npx auth@latest migrate --config lib/auth.ts -y
+
+company-db: ## (Re)create the company schema, its read-only role, and sample data (drops existing links)
+	set -a && . ./.env && set +a && venv/bin/python services/llm/db/company/setup.py
+
+company-link: ## Act as a company persona: make company-link EMAIL=you@example.com ROLE=manager|employee|hr|admin
+	set -a && . ./.env && set +a && venv/bin/python services/llm/db/company/setup.py --link "$(EMAIL)" --as $(or $(ROLE),manager)
