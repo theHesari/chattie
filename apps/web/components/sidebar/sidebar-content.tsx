@@ -4,6 +4,11 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 import { Suspense } from "react";
+import { CharacterBadge } from "@/components/sidebar/character-badge";
+import {
+  DashboardLink,
+  DashboardLinkFallback,
+} from "@/components/sidebar/dashboard-link";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { ThreadList } from "@/components/sidebar/thread-list";
 import { UserMenu } from "@/components/sidebar/user-menu";
@@ -20,6 +25,11 @@ export function SidebarContent() {
         <span className="font-semibold">Chattie</span>
         <NewChatButton />
       </div>
+      <div className="px-2">
+        <Suspense fallback={<DashboardLinkFallback />}>
+          <DashboardLink />
+        </Suspense>
+      </div>
       <nav
         aria-label="Chats"
         className="min-h-0 flex-1 overflow-y-auto px-2 pt-3 pb-2"
@@ -29,6 +39,9 @@ export function SidebarContent() {
         </Suspense>
       </nav>
       <div className="border-t p-2">
+        <Suspense>
+          <CharacterBadge />
+        </Suspense>
         <Suspense fallback={<SidebarMessage text="…" />}>
           <UserMenu />
         </Suspense>

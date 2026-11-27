@@ -13,8 +13,8 @@ export function ApiUnavailable() {
       <CloudOffIcon className="size-10 text-muted-foreground" />
       <h2 className="font-medium">Chattie is temporarily unavailable</h2>
       <p className="max-w-sm text-muted-foreground text-sm">
-        We couldn't reach the chat service. Your conversations are safe; try
-        again in a moment.
+        We couldn't reach the service. Your conversations and your data are
+        safe; try again in a moment.
       </p>
       <Button disabled={isRetrying} onClick={retry} variant="outline">
         {isRetrying ? "Retrying…" : "Try again"}

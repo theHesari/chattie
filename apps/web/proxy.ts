@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { newThreadPath } from "@/lib/routes";
 
 /**
- * Optimistic gate for the chat area: only checks that a session cookie exists.
+ * Optimistic gate for the signed-in area (chat, onboarding, dashboard): only checks that a session cookie exists.
  * The real check happens on the server (lib/session.ts) and in the API (JWT).
  * Auth pages aren't matched, so an expired cookie can't cause a redirect loop.
  */
@@ -18,5 +18,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/chat/:path*"],
+  matcher: ["/", "/chat/:path*", "/onboarding", "/dashboard"],
 };
