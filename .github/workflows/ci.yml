@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chattie
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: chattie
+      QUERY_DB_PASSWORD: ci-query-password
+      APP_DB_PASSWORD: ci-app-password
+      GENERATOR_DB_PASSWORD: ci-generator-password
+      OPENROUTER_API_KEY: ci-dummy
+      LLM_BASE_URL: http://localhost:9999
+      LLM_MODEL: ci-dummy
+      LLM_TEMPERATURE: "0"
+      LANGFUSE_PUBLIC_KEY: ci-dummy
+      LANGFUSE_SECRET_KEY: ci-dummy
+      LANGFUSE_BASE_URL: http://localhost:9998
+      CORS_ORIGINS: '["http://localhost:3001"]'
+      AUTH_JWKS_URL: http://localhost:3001/api/auth/jwks
+      AUTH_ISSUER: http://localhost:3001
+      AUTH_AUDIENCE: http://localhost:3001
+    defaults:
+      run:
+        working-directory: services/llm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/llm/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      # Creates the login roles and proves the migrations apply to an empty database.
+      - run: python -m db.migrate
+      - run: pytest tests
+
+  web:
+    runs-on: ubuntu-latest
+    env:
+      BETTER_AUTH_SECRET: ci-dummy-secret-with-enough-length-0123456789
+      BETTER_AUTH_URL: http://localhost:3001
+      AUTH_TRUSTED_ORIGINS: http://localhost:3001
+      AUTH_DATABASE_URL: postgresql://ci:ci@localhost:5432/chattie
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Build first: it generates the page/layout prop types that tsc needs.
+      - run: npm run build -w @chattie/web
+      - run: npx tsc --noEmit
+        working-directory: apps/web
+      - run: npm run lint -w @chattie/web
+      - name: Audit production dependencies (informational)
+        run: npm audit --omit=dev
+        continue-on-error: true
