@@ -1,53 +1,32 @@
-"""Create the `company` schema, its read-only query role, and deterministic sample data.
+"""Build and maintain the company world (see company/generator.py).
 
-Usage (from the repo root, see `make company-db` / `make company-link`):
-    python services/llm/db/company/setup.py                      # (re)create schema + data
-    python services/llm/db/company/setup.py --link EMAIL --as manager
-                                                                 # make an app account act as a persona
+Usage, from services/llm (or through the Makefile: `make db-world`, `make db-extend`):
+    python -m db.company.setup world --as-of 2026-11-27 [--seed 42]
+    python -m db.company.setup world --as-of 2026-11-27 --reset --confirm
+    python -m db.company.setup extend --to 2026-12-31
+    python -m db.company.setup archive [--days 30]
+    python -m db.company.setup dump [--out db/company/dump/world.dump]
+    python -m db.company.setup restore [--dump db/company/dump/world.dump] [--confirm]
 
-Reads DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME (owner connection) and
-QUERY_DB_USER, QUERY_DB_PASSWORD (the read-only role the LLM tool uses) from the environment.
-Re-running recreates the schema, which drops any links; pass --link again.
+Reads DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME (the owner connection). `world` first creates the
+roles and applies pending migrations. `--reset` deletes the whole company world, including generated
+characters and the requests visitors filed, so it prints what would be lost and needs `--confirm`.
 """
 
 import argparse
 import os
-import random
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import psycopg
-from psycopg import sql
 
-SCHEMA_SQL = Path(__file__).with_name("schema.sql")
-SEED = 42
-
-# Which employee an app account becomes for each role (see --as).
-PERSONAS = {
-    "admin": "Chief Executive Officer",
-    "manager": "Sales Manager, EMEA",
-    "hr": "Head of People",
-    "employee": "Account Executive",
-}
-
-FIRST = ["Ava", "Liam", "Noah", "Mia", "Leo", "Zara", "Omar", "Sara", "Arash", "Nika", "Lucas", "Emma",
-         "Kian", "Yara", "Elias", "Ines", "Darius", "Lena", "Hugo", "Maya", "Reza", "Chloe", "Ivan", "Anya"]
-LAST = ["Karimi", "Smith", "Rossi", "Müller", "Tanaka", "Haddad", "Novak", "Silva", "Moradi", "Dubois",
-        "Kowalski", "Jensen", "Ahmadi", "Lopez", "Berg", "Nasser", "Costa", "Fischer"]
-COUNTRIES = ["Germany", "France", "Netherlands", "Sweden", "Italy", "United States", "Canada", "Brazil",
-             "United Kingdom", "Spain", "Iran", "Turkey", "Japan"]
-COMPANY_WORDS = (["Blue", "North", "Bright", "Iron", "Green", "Swift", "Silver", "Atlas", "Nova", "Crest"],
-                 ["Labs", "Systems", "Logistics", "Foods", "Health", "Media", "Energy", "Retail", "Bank", "Motors"])
-PRODUCTS = {
-    "Software": [("Analytics Suite", 1200), ("CRM Cloud", 900), ("Security Shield", 650), ("Data Pipeline", 1500),
-                 ("Mobile SDK", 400), ("AI Assistant", 2000), ("Backup Pro", 300), ("Workflow Builder", 750)],
-    "Hardware": [("Edge Gateway", 850), ("Sensor Kit", 220), ("Rack Server", 4800), ("Smart Display", 640),
-                 ("Network Switch", 1300), ("Rugged Tablet", 980), ("Storage Array", 7200)],
-    "Services": [("Onboarding Package", 2500), ("Premium Support", 1800), ("Custom Integration", 6000),
-                 ("Cloud Migration", 9500), ("Security Audit", 4200), ("Managed Hosting", 1100)],
-    "Training": [("Admin Course", 700), ("Developer Bootcamp", 2200), ("Analytics Workshop", 950),
-                 ("Security Awareness", 300), ("Certification Exam", 450)],
-}
+from company.characters import archive_inactive
+from company.generator import advance_order_statuses, build_world, clear_world, extend_world
+from company.snapshot import RestoreRefused, dump_world, restore_world
+from db.envfile import load_repo_env
+from db.migrate import apply_migrations
+from db.roles import ensure_roles
 
 
 def connect() -> psycopg.Connection:
@@ -57,105 +36,99 @@ def connect() -> psycopg.Connection:
         user=os.environ["DB_USER"],
         password=os.environ["DB_PASSWORD"],
         dbname=os.environ.get("DB_NAME", "chattie"),
+        autocommit=True,
     )
 
 
-def ensure_query_role(cur: psycopg.Cursor) -> None:
-    user, password = os.environ.get("QUERY_DB_USER", "chattie_query"), os.environ["QUERY_DB_PASSWORD"]
-    exists = cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (user,)).fetchone()
-    verb = "ALTER" if exists else "CREATE"
-    # NOINHERIT and no memberships: there is no other role this login could switch to.
-    cur.execute(sql.SQL("{} ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD {}").format(
-        sql.SQL(verb), sql.Identifier(user), sql.Literal(password)))
-    cur.execute(sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
-        sql.Identifier(os.environ.get("DB_NAME", "chattie")), sql.Identifier(user)))
+def _count(conn: psycopg.Connection, query: str) -> int:
+    return conn.execute(query).fetchone()[0]
 
 
-def build_employees(rng: random.Random) -> list[tuple]:
-    names = iter(rng.sample([f"{f} {l}" for f in FIRST for l in LAST], 60))
-    rows: list[tuple] = []
-
-    def add(dept: int, manager: int | None, title: str, role: str, salary: tuple[int, int]) -> int:
-        emp_id = len(rows) + 1
-        hired = date(2016, 1, 1) + timedelta(days=rng.randrange(0, 3650))
-        rows.append((emp_id, dept, manager, next(names), title, role, rng.randrange(*salary, 500), hired))
-        return emp_id
-
-    ceo = add(1, None, "Chief Executive Officer", "admin", (240_000, 260_000))
-    for region in ("EMEA", "Americas"):
-        head = add(2, ceo, f"Sales Manager, {region}", "manager", (120_000, 140_000))
-        for _ in range(6):
-            add(2, head, "Account Executive", "employee", (60_000, 90_000))
-    for dept, title, staff, count in ((3, "Engineering Manager", "Software Engineer", 6),
-                                      (4, "Marketing Manager", "Marketing Specialist", 3),
-                                      (6, "Support Manager", "Support Engineer", 4)):
-        head = add(dept, ceo, title, "manager", (110_000, 135_000))
-        for _ in range(count):
-            add(dept, head, staff, "employee", (55_000, 110_000))
-    hr_head = add(5, ceo, "Head of People", "hr", (105_000, 120_000))
-    add(5, hr_head, "HR Specialist", "hr", (55_000, 70_000))
-    return rows
+def cmd_world(conn: psycopg.Connection, args: argparse.Namespace) -> None:
+    ensure_roles(conn, os.environ)
+    apply_migrations(conn)
+    if _count(conn, "SELECT count(*) FROM company.employees"):
+        characters = _count(conn, "SELECT count(*) FROM company.employees WHERE origin <> 'seed'")
+        requests = _count(conn, "SELECT count(*) FROM company.employee_requests")
+        if not args.reset:
+            raise SystemExit("A world already exists. Use --reset --confirm to replace it, or `extend` to add days.")
+        print(f"--reset would delete: {characters} generated characters/teammates and all {requests} requests.")
+        if not args.confirm:
+            raise SystemExit("Nothing deleted. Repeat with --confirm to go ahead.")
+        clear_world(conn)
+    stats = build_world(conn, seed=args.seed, as_of=args.as_of)
+    print(f"built: {stats.employees} employees, {stats.orders} orders, {stats.requests} requests, "
+          f"{stats.work_days} work days (as of {args.as_of}, seed {args.seed})")
 
 
-def seed(cur: psycopg.Cursor) -> None:
-    rng = random.Random(SEED)
-    cur.executemany("INSERT INTO company.departments VALUES (%s, %s)", list(enumerate(
-        ["Executive", "Sales", "Engineering", "Marketing", "Human Resources", "Customer Support"], start=1)))
-
-    employees = build_employees(rng)
-    cur.executemany("INSERT INTO company.employees (id, department_id, manager_id, name, title, role, salary, hired_at)"
-                    " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", employees)
-    reps = [e[0] for e in employees if e[4] == "Account Executive"]
-
-    products = [(i, name, category, price) for i, (category, name, price) in enumerate(
-        ((c, n, p) for c, items in PRODUCTS.items() for n, p in items), start=1)]
-    cur.executemany("INSERT INTO company.products VALUES (%s, %s, %s, %s)", products)
-
-    company_names = rng.sample([f"{a} {b}" for a in COMPANY_WORDS[0] for b in COMPANY_WORDS[1]], 60)
-    customers = [(i, name, rng.choice(COUNTRIES), rng.choice(reps)) for i, name in enumerate(company_names, start=1)]
-    cur.executemany("INSERT INTO company.customers VALUES (%s, %s, %s, %s)", customers)
-
-    now = datetime.now(timezone.utc)
-    orders = []
-    for order_id in range(1, 601):
-        customer = rng.choice(customers)
-        product = rng.choice(products)
-        quantity = rng.randint(1, 20)
-        age_days = rng.uniform(0, 540)
-        status = ("cancelled" if rng.random() < 0.05 else "pending" if age_days < 7
-                  else "shipped" if age_days < 21 else "delivered")
-        orders.append((order_id, customer[0], product[0], customer[3], quantity,
-                       quantity * product[3], status, now - timedelta(days=age_days)))
-    cur.executemany("INSERT INTO company.orders VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", orders)
-    print(f"seeded {len(employees)} employees, {len(customers)} customers, "
-          f"{len(products)} products, {len(orders)} orders")
+def cmd_extend(conn: psycopg.Connection, args: argparse.Namespace) -> None:
+    stats = extend_world(conn, to=args.to)
+    advanced = advance_order_statuses(conn, args.to)
+    print(f"extended to {args.to}: +{stats.orders} orders, +{stats.work_days} work days; {advanced} order statuses advanced")
 
 
-def link(cur: psycopg.Cursor, email: str, role: str) -> None:
-    user = cur.execute('SELECT id FROM auth."user" WHERE email = %s', (email,)).fetchone()
-    if not user:
-        raise SystemExit(f"no app account with email {email!r}; sign up first")
-    title = PERSONAS[role]
-    employee = cur.execute("SELECT id, name FROM company.employees WHERE title = %s ORDER BY id LIMIT 1",
-                           (title,)).fetchone()
-    cur.execute("UPDATE company.employees SET user_id = NULL WHERE user_id = %s", (user[0],))
-    cur.execute("UPDATE company.employees SET user_id = %s WHERE id = %s", (user[0], employee[0]))
-    print(f"{email} now acts as {employee[1]} ({title}, role={role})")
+DEFAULT_DUMP = Path(__file__).with_name("dump") / "world.dump"
+
+
+def connection_params() -> dict:
+    return {
+        "host": os.environ.get("DB_HOST", "localhost"),
+        "port": os.environ.get("DB_PORT", "5432"),
+        "user": os.environ["DB_USER"],
+        "password": os.environ["DB_PASSWORD"],
+        "dbname": os.environ.get("DB_NAME", "chattie"),
+    }
+
+
+def cmd_archive(conn: psycopg.Connection, args: argparse.Namespace) -> None:
+    today = args.today or datetime.now(ZoneInfo(os.environ.get("COMPANY_TIMEZONE") or "UTC")).date()
+    count = archive_inactive(conn, today=today, days=args.days)
+    print(f"archived {count} character(s) inactive for more than {args.days} days (as of {today})")
+
+
+def cmd_dump(args: argparse.Namespace) -> None:
+    dump_world(connection_params(), args.out)
+    print(f"wrote the seeded world (no generated characters) to {args.out} ({args.out.stat().st_size // 1024} KB)")
+
+
+def cmd_restore(args: argparse.Namespace) -> None:
+    try:
+        restore_world(connection_params(), args.dump, confirm=args.confirm)
+    except RestoreRefused as refused:
+        raise SystemExit(f"Nothing changed. {refused} Repeat with --confirm.") from None
+    print(f"restored the world from {args.dump}")
 
 
 def main() -> None:
+    load_repo_env()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--link", metavar="EMAIL", help="link this app account to a persona (keeps the data)")
-    parser.add_argument("--as", dest="role", choices=PERSONAS, default="manager", help="persona role for --link")
+    commands = parser.add_subparsers(dest="command", required=True)
+    world = commands.add_parser("world", help="build the world (creates roles, applies migrations first)")
+    world.add_argument("--as-of", type=date.fromisoformat, required=True)
+    world.add_argument("--seed", type=int, default=42)
+    world.add_argument("--reset", action="store_true", help="delete an existing world first")
+    world.add_argument("--confirm", action="store_true", help="really delete (with --reset)")
+    extend = commands.add_parser("extend", help="append orders and work days up to a date")
+    extend.add_argument("--to", type=date.fromisoformat, required=True)
+    archive = commands.add_parser("archive", help="archive generated characters inactive for more than N days (run daily)")
+    archive.add_argument("--days", type=int, default=30)
+    archive.add_argument("--today", type=date.fromisoformat, default=None, help=argparse.SUPPRESS)
+    dump = commands.add_parser("dump", help="write the seeded world (data only) to a file")
+    dump.add_argument("--out", type=Path, default=DEFAULT_DUMP)
+    restore = commands.add_parser("restore", help="load a dump (applies migrations first; never touches auth/public)")
+    restore.add_argument("--dump", type=Path, default=DEFAULT_DUMP)
+    restore.add_argument("--confirm", action="store_true", help="allow replacing an existing world")
     args = parser.parse_args()
-
-    with connect() as conn, conn.cursor() as cur:
-        if args.link:
-            link(cur, args.link, args.role)
-            return
-        ensure_query_role(cur)
-        cur.execute(SCHEMA_SQL.read_text())
-        seed(cur)
+    if args.command == "dump":
+        return cmd_dump(args)
+    if args.command == "restore":
+        return cmd_restore(args)
+    if args.command == "archive":  # runs as the generator role, not the owner
+        with psycopg.connect(**{**connection_params(), "user": "chattie_generator",
+                                "password": os.environ["GENERATOR_DB_PASSWORD"]}, autocommit=True) as conn:
+            return cmd_archive(conn, args)
+    with connect() as conn:
+        {"world": cmd_world, "extend": cmd_extend}[args.command](conn, args)
 
 
 if __name__ == "__main__":
