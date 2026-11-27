@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Path, Query, Request
@@ -5,6 +6,8 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, ConfigDict, Field
 
+from company.clock import company_today
+from company.service import ensure_character
 from core_llm import threads
 from core_llm.auth import CurrentUserId
 from core_llm.threads import THREAD_ID_PATTERN, ThreadAccessError, ThreadSummary
@@ -53,6 +56,10 @@ async def chat(request: Request, body: ChatRequest, user_id: CurrentUserId) -> S
     text = body.message.text.strip()
     if not text:
         raise HTTPException(status_code=422, detail="message has no text")
+
+    generator_pool = getattr(request.app.state, "generator_pool", None)
+    if generator_pool is not None:  # chatting counts as activity and brings an archived character back
+        await asyncio.to_thread(ensure_character, generator_pool, user_id, company_today(request.app.state.settings))
 
     try:
         await threads.touch(request.app.state.db_pool, body.id, user_id, text)

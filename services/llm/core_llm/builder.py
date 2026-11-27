@@ -5,7 +5,7 @@ from config import Settings
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg.rows import dict_row
-from psycopg_pool import AsyncConnectionPool
+from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 
 def build_llm(settings: Settings) -> ChatOpenAI:
@@ -39,6 +39,20 @@ async def build_query_pool(settings: Settings) -> AsyncIterator[AsyncConnectionP
     pool = AsyncConnectionPool(settings.QUERY_DATABASE_CONNINFO, kwargs={"prepare_threshold": 0}, open=False)
     async with pool:
         yield pool
+
+
+@asynccontextmanager
+async def build_app_pool(settings: Settings) -> AsyncIterator[AsyncConnectionPool]:
+    """Pool of the `chattie_app` role: files and cancels the caller's own requests (row-level security applies)."""
+    pool = AsyncConnectionPool(settings.APP_DATABASE_CONNINFO, kwargs={"prepare_threshold": 0}, open=False)
+    async with pool:
+        yield pool
+
+
+def build_generator_pool(settings: Settings) -> ConnectionPool:
+    """Synchronous pool of the `chattie_generator` role for character generation and catch-up, which run in
+    worker threads. The caller closes it."""
+    return ConnectionPool(settings.GENERATOR_DATABASE_CONNINFO, kwargs={"autocommit": True}, min_size=1, max_size=4, open=True)
 
 
 async def build_memory(pool: AsyncConnectionPool) -> AsyncPostgresSaver:
