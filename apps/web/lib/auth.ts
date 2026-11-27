@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { jwt } from "better-auth/plugins";
 import { Pool } from "pg";
@@ -24,12 +26,44 @@ async function claimUnownedThreads(userId: string) {
   }
 }
 
+/**
+ * Sign-up is by invitation only. Spends the invite in the database (single use, unexpired, and bound
+ * to this email when the invite names one). Only the code's SHA-256 hash is ever stored or compared.
+ */
+async function redeemInvite(code: unknown, email: string): Promise<boolean> {
+  if (typeof code !== "string" || code.trim() === "" || code.length > 200) {
+    return false;
+  }
+  const hash = createHash("sha256").update(code.trim()).digest("hex");
+  const { rows } = await pool.query(
+    "SELECT public.redeem_invite($1, $2, $3) AS ok",
+    [hash, email, email],
+  );
+  return rows[0]?.ok === true;
+}
+
 export const auth = betterAuth({
   database: pool,
   trustedOrigins,
   emailAndPassword: { enabled: true },
   databaseHooks: {
-    user: { create: { after: (user) => claimUnownedThreads(user.id) } },
+    user: {
+      create: {
+        // Runs for every way an account can be created, so the gate cannot be bypassed by
+        // calling the endpoint directly instead of using the form.
+        before: async (user, context) => {
+          const code =
+            context?.headers?.get("x-invite-code") ?? context?.body?.inviteCode;
+          if (!(await redeemInvite(code, user.email))) {
+            throw new APIError("FORBIDDEN", {
+              message:
+                "Sign-up is by invitation only. Enter a valid, unused invite code.",
+            });
+          }
+        },
+        after: (user) => claimUnownedThreads(user.id),
+      },
+    },
   },
   plugins: [
     // Signs short-lived JWTs (EdDSA) for the FastAPI service; public keys at /api/auth/jwks.

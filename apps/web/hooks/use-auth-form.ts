@@ -12,11 +12,11 @@ async function authenticate(mode: AuthMode, form: FormData) {
   const password = String(form.get("password") ?? "");
   const { error } =
     mode === "sign-up"
-      ? await authClient.signUp.email({
-          name: field(form, "name"),
-          email,
-          password,
-        })
+      ? await authClient.signUp.email(
+          { name: field(form, "name"), email, password },
+          // Sign-up is invite-only: the server checks this header (see lib/auth.ts).
+          { headers: { "x-invite-code": field(form, "inviteCode") } },
+        )
       : await authClient.signIn.email({ email, password });
   if (error) {
     throw new Error(error.message ?? "Something went wrong. Please try again.");

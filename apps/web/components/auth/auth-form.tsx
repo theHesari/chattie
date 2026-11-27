@@ -11,8 +11,8 @@ const COPY = {
   "sign-in": {
     title: "Sign in to Chattie",
     submit: "Sign in",
-    switchText: "No account yet?",
-    switchLink: { href: "/sign-up", label: "Create one" },
+    switchText: "Have an invite code?",
+    switchLink: { href: "/sign-up", label: "Create an account" },
   },
   "sign-up": {
     title: "Create your account",
@@ -58,6 +58,18 @@ export function AuthForm({ mode }: AuthFormProps) {
           type="password"
         />
       </div>
+      {mode === "sign-up" && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="inviteCode">Invite code</Label>
+          <Input
+            autoComplete="off"
+            id="inviteCode"
+            name="inviteCode"
+            required
+            spellCheck={false}
+          />
+        </div>
+      )}
       {error && (
         <p className="text-destructive text-sm" role="alert">
           {error}
