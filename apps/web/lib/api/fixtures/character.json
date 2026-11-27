@@ -1,0 +1,8 @@
+{
+  "employeeId": 1000,
+  "name": "Ada Lovelace",
+  "title": "Sales Manager, Nordics",
+  "role": "manager",
+  "department": "Sales",
+  "managerName": "Liam Smith"
+}

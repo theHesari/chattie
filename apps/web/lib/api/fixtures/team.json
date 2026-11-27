@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1001,
+    "name": "Ava Berg",
+    "title": "Account Executive",
+    "todayStatus": "office",
+    "nextAway": "2026-12-07"
+  },
+  {
+    "id": 1003,
+    "name": "Liam Novak",
+    "title": "Account Executive",
+    "todayStatus": "office",
+    "nextAway": null
+  },
+  {
+    "id": 1002,
+    "name": "Omar Rossi",
+    "title": "Account Executive",
+    "todayStatus": "remote",
+    "nextAway": "2026-12-04"
+  },
+  {
+    "id": 1004,
+    "name": "Zara Haddad",
+    "title": "Account Executive",
+    "todayStatus": "office",
+    "nextAway": null
+  }
+]

@@ -6,7 +6,7 @@ import { getApiToken } from "@/lib/session";
 import type { ThreadSummary } from "@/types/thread";
 
 /** GET from the API as the signed-in user (server side). */
-async function apiGet(path: string): Promise<unknown> {
+export async function apiGet(path: string): Promise<unknown> {
   const response = await apiFetch(path, {
     headers: { Authorization: `Bearer ${await getApiToken()}` },
   });

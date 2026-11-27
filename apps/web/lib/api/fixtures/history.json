@@ -1,0 +1,177 @@
+{
+  "today": "2026-11-27",
+  "events": [
+    {
+      "happenedAt": "2026-08-01T12:30:00+03:30",
+      "kind": "request_decided",
+      "title": "Day off approved",
+      "details": {
+        "to": "2026-08-12",
+        "from": "2026-08-12"
+      }
+    },
+    {
+      "happenedAt": "2026-06-12T12:30:00+03:30",
+      "kind": "request_decided",
+      "title": "Day off approved",
+      "details": {
+        "to": "2026-06-17",
+        "from": "2026-06-15"
+      }
+    },
+    {
+      "happenedAt": "2026-03-09T12:30:00+03:30",
+      "kind": "request_decided",
+      "title": "Day off approved",
+      "details": {
+        "to": "2026-03-12",
+        "from": "2026-03-12"
+      }
+    },
+    {
+      "happenedAt": "2026-02-15T17:30:00+03:30",
+      "kind": "review",
+      "title": "Annual review",
+      "details": {}
+    },
+    {
+      "happenedAt": "2025-12-07T12:30:00+03:30",
+      "kind": "request_decided",
+      "title": "Day off approved",
+      "details": {
+        "to": "2025-12-12",
+        "from": "2025-12-12"
+      }
+    },
+    {
+      "happenedAt": "2025-02-13T17:30:00+03:30",
+      "kind": "review",
+      "title": "Annual review",
+      "details": {}
+    },
+    {
+      "happenedAt": "2024-09-03T12:30:00+03:30",
+      "kind": "hired",
+      "title": "Joined the company",
+      "details": {}
+    }
+  ],
+  "balance": {
+    "year": 2026,
+    "allowance": 20,
+    "used": 6,
+    "remaining": 14
+  },
+  "recentWorkDays": [
+    {
+      "day": "2026-11-27",
+      "hours": 8.0,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-26",
+      "hours": 8.0,
+      "kind": "remote"
+    },
+    {
+      "day": "2026-11-25",
+      "hours": 8.0,
+      "kind": "remote"
+    },
+    {
+      "day": "2026-11-24",
+      "hours": 7.5,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-23",
+      "hours": 8.5,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-20",
+      "hours": 7.5,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-19",
+      "hours": 8.5,
+      "kind": "remote"
+    },
+    {
+      "day": "2026-11-18",
+      "hours": 7.5,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-17",
+      "hours": 7.5,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-16",
+      "hours": 8.0,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-13",
+      "hours": 8.0,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-12",
+      "hours": 8.0,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-11",
+      "hours": 8.0,
+      "kind": "remote"
+    },
+    {
+      "day": "2026-11-10",
+      "hours": 8.0,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-09",
+      "hours": 8.5,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-06",
+      "hours": 8.0,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-05",
+      "hours": 7.5,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-04",
+      "hours": 7.5,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-03",
+      "hours": 7.5,
+      "kind": "office"
+    },
+    {
+      "day": "2026-11-02",
+      "hours": 0.0,
+      "kind": "holiday"
+    },
+    {
+      "day": "2026-10-30",
+      "hours": 8.0,
+      "kind": "remote"
+    },
+    {
+      "day": "2026-10-29",
+      "hours": 8.0,
+      "kind": "remote"
+    }
+  ]
+}

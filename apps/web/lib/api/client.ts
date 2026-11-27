@@ -4,13 +4,13 @@ import { authClient } from "@/lib/auth-client";
 import type { ThreadSummary } from "@/types/thread";
 
 /** Fresh short-lived JWT per request (Better Auth JWT plugin). */
-async function authHeaders(): Promise<Record<string, string>> {
+export async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await authClient.token();
   return data ? { Authorization: `Bearer ${data.token}` } : {};
 }
 
 /** GET from the API as the signed-in user (browser side). Throws ApiError on failure. */
-async function apiGet(path: string): Promise<unknown> {
+export async function apiGet(path: string): Promise<unknown> {
   const response = await apiFetch(path, { headers: await authHeaders() });
   if (!response.ok) throw new ApiError(response.status, path);
   return response.json();
